@@ -21,7 +21,7 @@ jobs:
           .venv/bin/pip install -r requirements.txt pyright
       - name: Load every test suite and list its tests
         run: |
-          .venv/bin/python nmos-test.py --list-suites | grep -v WARNING | sed 's/^ \* //' > suites.txt
+          .venv/bin/python nmos-test.py --list-suites | grep -v -e WARNING -e '^$' | sed 's/^ \* //' > suites.txt
           test -s suites.txt
           while read -r suite; do
             echo "== ${suite}"
