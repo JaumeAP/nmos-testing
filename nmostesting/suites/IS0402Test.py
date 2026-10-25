@@ -17,7 +17,7 @@
 import re
 import socket
 import uuid
-from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue]
+from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue, reportPrivateImportUsage]
 from copy import deepcopy
 from time import sleep
 from jsonschema import ValidationError
