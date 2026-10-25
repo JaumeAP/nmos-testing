@@ -17,7 +17,7 @@
 import time
 import socket
 import os
-from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue]
+from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue, reportPrivateImportUsage]
 from jsonschema import ValidationError
 from urllib.parse import urlparse
 from dnslib import QTYPE

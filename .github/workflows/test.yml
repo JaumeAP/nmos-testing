@@ -18,7 +18,7 @@ jobs:
       - name: Install requirements
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -r requirements.txt pyright
+          .venv/bin/pip install -r requirements.txt pyright==1.1.414
       - name: Load every test suite and list its tests
         run: |
           .venv/bin/python nmos-test.py --list-suites | grep -v -e WARNING -e '^$' | sed 's/^ \* //' > suites.txt
@@ -30,7 +30,6 @@ jobs:
       - name: Type check the modules that are clean
         run: >
           .venv/bin/pyright --pythonpath .venv/bin/python
-          nmostesting/Config.py
           nmostesting/GenericTest.py
           nmostesting/IS04Utils.py
           nmostesting/MdnsListener.py

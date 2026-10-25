@@ -15,7 +15,7 @@
 import os
 import functools
 from typing import Any, Optional
-from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue]
+from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue, reportPrivateImportUsage]
 import git
 import jsonschema
 import re

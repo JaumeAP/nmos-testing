@@ -44,7 +44,7 @@ from enum import IntEnum
 from junit_xml import TestSuite, TestCase
 from datetime import datetime, timedelta
 from types import SimpleNamespace
-from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue]
+from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue, reportPrivateImportUsage]
 
 from . import Config as CONFIG
 from .DNS import DNS
@@ -1329,6 +1329,7 @@ def run_api_tests(args, data_format):
         return TestSuite.to_xml_string([formatted_test_results], prettyprint=True)
     else:
         formatted_test_results = format_test_results(results, endpoints, "json", args)
+        assert isinstance(formatted_test_results, str)
         return json.loads(formatted_test_results)
 
 
