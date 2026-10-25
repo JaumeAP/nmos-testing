@@ -14,7 +14,8 @@
 
 import os
 import functools
-from requests.compat import json
+from typing import Any, Optional
+from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue]
 import git
 import jsonschema
 import re
@@ -179,6 +180,7 @@ class GenericTest(object):
                 if method_name.startswith("test_"):
                     method = getattr(self, method_name)
                     if callable(method):
+                        assert CONFIG.RANDOM_SEED is not None
                         NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(method_name))
                         print(" * Running " + method_name)
                         test = Test(inspect.getdoc(method), method_name)
@@ -193,6 +195,7 @@ class GenericTest(object):
         if test_name != "auto" and test_name != "all":
             method = getattr(self, test_name)
             if callable(method):
+                assert CONFIG.RANDOM_SEED is not None
                 NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(test_name))
                 print(" * Running " + test_name)
                 test = Test(inspect.getdoc(method), test_name)
@@ -232,6 +235,7 @@ class GenericTest(object):
             # Add 'query' permission when mock registry is disabled and existing network registry is used
             if not CONFIG.ENABLE_DNS_SD and "query" not in scopes:
                 scopes.append("query")
+            assert self.primary_auth is not None
             CONFIG.AUTH_TOKEN = self.primary_auth.generate_token(scopes, True, overrides={
                 "client_id": str(uuid.uuid4()),
                 "exp": int(time.time() + 3600)})
@@ -259,7 +263,7 @@ class GenericTest(object):
 
         return self.result
 
-    def convert_bytes(self, data):
+    def convert_bytes(self, data) -> Any:
         """Convert bytes which may be contained within a dict or tuple into strings"""
         if isinstance(data, bytes):
             return data.decode('ascii')
@@ -409,6 +413,7 @@ class GenericTest(object):
         results = []
 
         for api in sorted(self.apis.keys()):
+            assert CONFIG.RANDOM_SEED is not None
             NMOSUtils.RANDOM.seed(CONFIG.RANDOM_SEED ^ hash(api))
             if "raml" not in self.apis[api]:
                 continue
@@ -490,7 +495,8 @@ class GenericTest(object):
         else:
             return test.FAIL(message)
 
-    def do_test_authorization(self, api_name, test_name, error_code=401, error_type="invalid_token", token=None):
+    def do_test_authorization(self, api_name, test_name, error_code=401, error_type: Optional[str] = "invalid_token",
+                              token=None):
         api = self.apis[api_name]
         url = "{}".format(api["url"].rstrip("/"))
         test = Test("GET /x-nmos/{}/{} ({})".format(api_name, api["version"], test_name), self.auto_test_name(api_name))
@@ -548,6 +554,7 @@ class GenericTest(object):
             secondary_authorization_server.start()
 
             # generate token
+            assert self.secondary_auth is not None
             token = self.secondary_auth.generate_token([api_name])
 
             fail = None

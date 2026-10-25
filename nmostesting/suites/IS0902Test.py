@@ -88,8 +88,8 @@ class IS0902Test(GenericTest):
         if self.system_basics_done:
             return
 
+        system_mdns = []
         if CONFIG.DNS_SD_MODE == "multicast":
-            system_mdns = []
             priority = 0
 
             # Add advertisement with invalid version
@@ -124,6 +124,7 @@ class IS0902Test(GenericTest):
 
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise the primary System API and invalid ones at pri 0, and allow the Node to do a basic registration
+            assert self.zc is not None
             self.zc.register_service(system_mdns[0])
             self.zc.register_service(system_mdns[1])
             self.zc.register_service(system_mdns[2])
@@ -139,6 +140,7 @@ class IS0902Test(GenericTest):
 
         # Clean up mDNS advertisements and disable System APIs
         if CONFIG.DNS_SD_MODE == "multicast":
+            assert self.zc is not None
             for info in system_mdns:
                 self.zc.unregister_service(info)
         self.invalid_system.disable()
@@ -164,6 +166,7 @@ class IS0902Test(GenericTest):
                                  "'multicast'")
 
         self.do_system_basics_prereqs()
+        assert self.system_primary_data is not None
 
         if self.apis[NODE_API_KEY]["ip"] in self.system_primary_data.requests:
             return test.PASS()
@@ -178,6 +181,7 @@ class IS0902Test(GenericTest):
                                  "'multicast'")
 
         self.do_system_basics_prereqs()
+        assert self.system_invalid_data is not None
 
         if self.apis[NODE_API_KEY]["ip"] in self.system_invalid_data.requests:
             return test.FAIL("Node incorrectly contacted a System API advertising an invalid 'api_ver' or 'api_proto'")
@@ -192,6 +196,7 @@ class IS0902Test(GenericTest):
                                  "'unicast'")
 
         self.do_system_basics_prereqs()
+        assert self.system_primary_data is not None
 
         if self.apis[NODE_API_KEY]["ip"] in self.system_primary_data.requests:
             return test.PASS()
@@ -206,6 +211,7 @@ class IS0902Test(GenericTest):
                                  "'unicast'")
 
         self.do_system_basics_prereqs()
+        assert self.system_invalid_data is not None
 
         if self.apis[NODE_API_KEY]["ip"] in self.system_invalid_data.requests:
             return test.FAIL("Node incorrectly contacted a System API advertising an invalid 'api_ver' or 'api_proto'")
@@ -219,6 +225,7 @@ class IS0902Test(GenericTest):
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_system_basics_prereqs()
+        assert self.system_primary_data is not None
 
         api = self.apis[SYSTEM_API_KEY]
 
@@ -238,6 +245,7 @@ class IS0902Test(GenericTest):
             return test.DISABLED("This test cannot be performed when ENABLE_DNS_SD is False")
 
         self.do_system_basics_prereqs()
+        assert self.system_primary_data is not None
 
         if not self.apis[NODE_API_KEY]["ip"] in self.system_primary_data.requests:
             return test.FAIL("Node did not attempt to contact the advertised System API.")

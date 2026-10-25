@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import git
+from git.exc import InvalidGitRepositoryError
 import os
 import copy
 import pickle
@@ -43,7 +44,7 @@ from enum import IntEnum
 from junit_xml import TestSuite, TestCase
 from datetime import datetime, timedelta
 from types import SimpleNamespace
-from requests.compat import json
+from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue]
 
 from . import Config as CONFIG
 from .DNS import DNS
@@ -595,14 +596,15 @@ def enumerate_tests(class_def, describe=False):
             if callable(method):
                 description = method_name
                 if describe:
-                    try:
-                        docstring = inspect.getdoc(method).replace('\n', ' ').replace('\r', '')
+                    docstring = inspect.getdoc(method)
+                    if docstring is None:
+                        print(" * ERROR: {}.{} is missing a description".format(class_def.__name__, method_name))
+                    else:
+                        docstring = docstring.replace('\n', ' ').replace('\r', '')
                         description += ": " + docstring
                         if len(docstring) > 160:
                             print(" * WARNING: {}.{} description is too long (> 160 characters)"
                                   .format(class_def.__name__, method_name))
-                    except AttributeError:
-                        print(" * ERROR: {}.{} is missing a description".format(class_def.__name__, method_name))
                 tests.append(description)
     return tests
 
@@ -659,7 +661,7 @@ class DataForm(Form):
         test_data[test_id]["test_methods"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"])
         test_data[test_id]["test_descriptions"] = enumerate_tests(TEST_DEFINITIONS[test_id]["class"], describe=True)
 
-    hidden_options = HiddenField(default=max_endpoints)
+    hidden_options = HiddenField(default=str(max_endpoints))
     hidden_tests = HiddenField(default=json.dumps(test_data))
     hidden_specs = HiddenField(default=json.dumps(CONFIG.SPECIFICATIONS))
 
@@ -993,6 +995,7 @@ def write_test_results(results, endpoints, args):
             # pretty-print to help out Jenkins (and us humans), which struggles otherwise
             TestSuite.to_file(f, [formatted], prettyprint=True)
         else:
+            assert isinstance(formatted, str)
             f.write(formatted)
         print(" * Test results written to file: {}".format(args.output))
     return identify_exit_code(results, args)
@@ -1209,6 +1212,8 @@ def check_internal_requirements():
     with open("requirements.txt") as requirements_file:
         for requirement in requirements_file.readlines():
             requirement_name = get_package_name(requirement)
+            if requirement_name is None:
+                continue
             if requirement_name in corrections:
                 corrected_req = corrections[requirement_name]
             else:
@@ -1262,7 +1267,9 @@ def api():
         return jsonify("Error: Ensure the body of the request is valid JSON and non-empty"), 400
     request_data = dict(DEFAULT_ARGS, **request.json)
     request_args = SimpleNamespace(**request_data)
-    return_message, return_type = validate_args(request_args, access_type="http")
+    # arg_return() only returns a (message, type) pair for access_type="http"
+    validation = validate_args(request_args, access_type="http")
+    return_message, return_type = validation  # pyright: ignore[reportGeneralTypeIssues]
     if return_message:
         if return_type == ExitCodes.OK:
             return jsonify(return_message.split('\n')), 200
@@ -1287,7 +1294,7 @@ def api():
 def config():
     if request.method == "GET":
         return jsonify(_export_config())
-    elif request.method == "PATCH":
+    else:
         try:
             if not request.is_json:
                 return jsonify("Error: Request mimetype is not set to a JSON specific type with a valid JSON Body"), 400
@@ -1331,7 +1338,7 @@ def main(args):
     if CONFIG.ENABLE_DNS_SD and CONFIG.DNS_SD_MODE == "unicast":
         is_admin = False
         if platform.system() == "Windows":
-            from ctypes import windll
+            from ctypes import windll  # pyright: ignore[reportAttributeAccessIssue]
             if windll.shell32.IsUserAnAdmin():
                 is_admin = True
         elif os.geteuid() == 0:
@@ -1356,7 +1363,7 @@ def main(args):
     try:
         repo = git.Repo(".")
         TOOL_VERSION = repo.git.rev_parse(repo.head.object.hexsha, short=7)
-    except git.exc.InvalidGitRepositoryError:
+    except InvalidGitRepositoryError:
         TOOL_VERSION = "Unknown"
 
     # Start the DNS server
@@ -1364,6 +1371,8 @@ def main(args):
         DNS_SERVER = DNS()
 
     # Advertise the primary mock Authorization server to allow the Node to find it
+    zc = None
+    primary_auth_info = None
     if CONFIG.ENABLE_AUTH and CONFIG.DNS_SD_MODE == "multicast":
         primary_auth_info = PRIMARY_AUTH.make_mdns_info()
         zc = Zeroconf()
@@ -1398,7 +1407,7 @@ def main(args):
     print(" * Exiting")
 
     # Remove the primary mock Authorization server advertisement
-    if CONFIG.ENABLE_AUTH and CONFIG.DNS_SD_MODE == "multicast":
+    if zc is not None and primary_auth_info is not None:
         zc.unregister_service(primary_auth_info)
 
     # Stop the DNS server

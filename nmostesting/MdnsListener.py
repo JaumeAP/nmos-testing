@@ -16,9 +16,10 @@
 
 from threading import Thread
 from queue import Queue
+from zeroconf import ServiceListener
 
 
-class MdnsListener(object):
+class MdnsListener(ServiceListener):
     def __init__(self, zeroconf):
         self.zeroconf = zeroconf
         self.services = list()
@@ -30,14 +31,14 @@ class MdnsListener(object):
         t.daemon = True
         t.start()
 
-    def add_service(self, zeroconf, srv_type, name):
-        self._resolve_service(srv_type, name)
+    def add_service(self, zc, type_, name):
+        self._resolve_service(type_, name)
 
-    def remove_service(self, zeroconf, srv_type, name):
+    def remove_service(self, zc, type_, name):
         pass
 
-    def update_service(self, zeroconf, srv_type, name):
-        self._resolve_service(srv_type, name)
+    def update_service(self, zc, type_, name):
+        self._resolve_service(type_, name)
 
     def get_service_list(self):
         self.resolve_queue.join()
