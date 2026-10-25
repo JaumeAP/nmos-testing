@@ -1,0 +1,42 @@
+name: Test
+on:
+  workflow_dispatch:
+
+  pull_request:
+
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install requirements
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -r requirements.txt pyright
+      - name: Load every test suite and list its tests
+        run: |
+          .venv/bin/python nmos-test.py --list-suites | grep -v WARNING | sed 's/^ \* //' > suites.txt
+          test -s suites.txt
+          while read -r suite; do
+            echo "== ${suite}"
+            .venv/bin/python nmos-test.py suite "${suite}" --list-tests > /dev/null
+          done < suites.txt
+      - name: Type check the modules that are clean
+        run: >
+          .venv/bin/pyright --pythonpath .venv/bin/python
+          nmostesting/Config.py
+          nmostesting/GenericTest.py
+          nmostesting/IS04Utils.py
+          nmostesting/MdnsListener.py
+          nmostesting/NMOSTesting.py
+          nmostesting/suites/IS0401Test.py
+          nmostesting/suites/IS0402Test.py
+          nmostesting/suites/IS0403Test.py
+          nmostesting/suites/IS0902Test.py
+          nmostesting/suites/IS1001Test.py
