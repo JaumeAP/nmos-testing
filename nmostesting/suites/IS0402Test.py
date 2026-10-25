@@ -17,7 +17,7 @@
 import re
 import socket
 import uuid
-from requests.compat import json
+from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue]
 from copy import deepcopy
 from time import sleep
 from jsonschema import ValidationError
@@ -70,6 +70,7 @@ class IS0402Test(GenericTest):
         if CONFIG.DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
+        assert self.zc is not None and self.zc_listener is not None
         ServiceBrowser(self.zc, service_type, self.zc_listener)
         sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
         serv_list = self.zc_listener.get_service_list()
@@ -2137,6 +2138,7 @@ class IS0402Test(GenericTest):
 
         self.do_test_api_v1_x(test)
 
+        assert self.auth is not None
         token_scopes = ["registration"]
         a_token = self.auth.generate_token(token_scopes, True)
         b_token = self.auth.generate_token(token_scopes, True)
@@ -2158,6 +2160,7 @@ class IS0402Test(GenericTest):
 
         self.do_test_api_v1_x(test)
 
+        assert self.auth is not None
         token_scopes = ["registration"]
         a_token = self.auth.generate_token(token_scopes, True, azp=True)
         # Checks tha client_id and azp are treated the same way

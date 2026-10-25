@@ -17,13 +17,14 @@
 import time
 import socket
 import os
-from requests.compat import json
+from requests.compat import json  # pyright: ignore[reportAttributeAccessIssue]
 from jsonschema import ValidationError
 from urllib.parse import urlparse
 from dnslib import QTYPE
 from copy import deepcopy
 from collections import defaultdict
 from pathlib import Path
+from typing import Any, Dict
 from zeroconf import ServiceBrowser, ServiceInfo, Zeroconf
 
 from .. import Config as CONFIG
@@ -31,6 +32,7 @@ from ..MdnsListener import MdnsListener
 from ..GenericTest import GenericTest, NMOSTestException, NMOS_WIKI_URL
 from ..IS04Utils import IS04Utils
 from ..TestHelper import get_default_ip, is_ip_address, load_resolved_schema, check_content_type
+from ..mocks.Registry import RegistryData
 
 NODE_API_KEY = "node"
 RECEIVER_CAPS_KEY = "receiver-caps"
@@ -54,9 +56,10 @@ class IS0401Test(GenericTest):
         self.node_url = self.apis[NODE_API_KEY]["url"]
         self.registry_basics_done = False
         self.registry_basics_data = []
-        self.registry_primary_data = None
-        self.registry_invalid_data = None
-        self.node_basics_data = {
+        # Both are set by do_registry_basics_prereqs() before any test reads them
+        self.registry_primary_data: RegistryData = None  # pyright: ignore[reportAttributeAccessIssue]
+        self.registry_invalid_data: RegistryData = None  # pyright: ignore[reportAttributeAccessIssue]
+        self.node_basics_data: Dict[str, Any] = {
             "self": None, "devices": None, "sources": None,
             "flows": None, "senders": None, "receivers": None
         }
@@ -155,8 +158,8 @@ class IS0401Test(GenericTest):
             self.do_node_basics_prereqs()
             return
 
+        registry_mdns = []
         if CONFIG.DNS_SD_MODE == "multicast":
-            registry_mdns = []
             priority = 0
 
             # Add advertisement with invalid version
@@ -191,6 +194,7 @@ class IS0401Test(GenericTest):
 
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise the primary registry and invalid ones at pri 0, and allow the Node to do a basic registration
+            assert self.zc is not None
             if self.is04_utils.compare_api_version(self.apis[NODE_API_KEY]["version"], "v1.0") != 0:
                 self.zc.register_service(registry_mdns[0], strict=self._strict_service_name(registry_mdns[0]))
                 self.zc.register_service(registry_mdns[1], strict=self._strict_service_name(registry_mdns[1]))
@@ -225,6 +229,7 @@ class IS0401Test(GenericTest):
                 registry.enable()
 
             if CONFIG.DNS_SD_MODE == "multicast":
+                assert self.zc is not None
                 for info in registry_mdns[3:]:
                     self.zc.register_service(info, strict=self._strict_service_name(info))
 
@@ -262,6 +267,7 @@ class IS0401Test(GenericTest):
 
         # Clean up mDNS advertisements and disable registries
         if CONFIG.DNS_SD_MODE == "multicast":
+            assert self.zc is not None
             for info in registry_mdns:
                 self.zc.unregister_service(info)
         self.invalid_registry.disable()
@@ -535,6 +541,7 @@ class IS0401Test(GenericTest):
                     registered_preceding.append(rdata["id"])
                 elif rtype == res_type:
                     found_resource = True
+                    assert parent_type is not None
                     if rdata[parent_type + "_id"] not in registered_parents:
                         return test.FAIL("{} '{}' was registered before its referenced '{}' '{}'"
                                          .format(res_type.title(), rdata["id"],
@@ -815,6 +822,7 @@ class IS0401Test(GenericTest):
         """PUTing to a Receiver target resource with a Sender resource payload is accepted
         and connects the Receiver to a stream"""
 
+        sender_info = None
         if CONFIG.DNS_SD_MODE == "multicast":
             sender_info = self._node_mdns_info(self.node.port)
 
@@ -866,6 +874,7 @@ class IS0401Test(GenericTest):
 
                 if CONFIG.DNS_SD_MODE == "multicast":
                     # Advertise the sender to allow the Node to find it to make connection
+                    assert self.zc is not None and sender_info is not None
                     self.zc.register_service(sender_info)
 
                 api = self.apis[NODE_API_KEY]
@@ -873,6 +882,7 @@ class IS0401Test(GenericTest):
                 self.do_receiver_put(test, receiver["id"], request_data)
 
                 if CONFIG.DNS_SD_MODE == "multicast":
+                    assert self.zc is not None and sender_info is not None
                     self.zc.unregister_service(sender_info)
 
                 time.sleep(CONFIG.API_PROCESSING_TIMEOUT)
@@ -967,6 +977,7 @@ class IS0401Test(GenericTest):
             first_hb_to_registry = registry_data.heartbeats[0]
             if last_hb:
                 if first_hb_to_registry < last_hb:
+                    assert last_registry is not None
                     return test.FAIL("Node sent a heartbeat to the registry on port {} before the registry on port {}, "
                                      "despite their priorities requiring the opposite behaviour"
                                      .format(registry_data.port, last_registry.port))
@@ -1418,6 +1429,7 @@ class IS0401Test(GenericTest):
                     continue
 
                 if self.authorization and urlparse(href).path.startswith("/x-nmos/connection"):
+                    assert self.auth is not None
                     token = self.auth.generate_token(["connection"], True)
                     headers = {"Authorization": "Bearer {}".format(token)}
                 else:
@@ -1463,6 +1475,7 @@ class IS0401Test(GenericTest):
 
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
+            assert self.zc is not None
             self.zc.register_service(registry_info, strict=self._strict_service_name(registry_info))
 
         # Wait for n seconds after advertising the service for the first POST and then DELETE from a Node
@@ -1475,6 +1488,7 @@ class IS0401Test(GenericTest):
 
         # By this point we should have had at least one Node POST and a corresponding DELETE
         if CONFIG.DNS_SD_MODE == "multicast":
+            assert self.zc is not None
             self.zc.unregister_service(registry_info)
         self.primary_registry.disable()
 
@@ -1567,7 +1581,7 @@ class IS0401Test(GenericTest):
                                     if group_params[0] not in groups["node"]:
                                         groups["node"][group_params[0]] = {}
                                     group_ref = groups["node"][group_params[0]]
-                                elif group_scope == "device":
+                                else:
                                     if group_params[0] not in groups["device"][resource["device_id"]]:
                                         groups["device"][resource["device_id"]][group_params[0]] = {}
                                     group_ref = groups["device"][resource["device_id"]][group_params[0]]
@@ -2082,6 +2096,7 @@ class IS0401Test(GenericTest):
         uniques = set()
 
         for res_type in ["node", "device"]:
+            res_id = None
             try:
                 node_resources = self.get_node_resources(res_type)
 
@@ -2168,11 +2183,13 @@ class IS0401Test(GenericTest):
 
         if CONFIG.DNS_SD_MODE == "multicast":
             # Advertise a registry at pri 0 and allow the Node to do a basic registration
+            assert self.zc is not None
             self.zc.register_service(registry_info, strict=self._strict_service_name(registry_info))
 
         # Wait for n seconds after advertising the service for the first POST from a Node
         self.primary_registry.wait_for_registration(CONFIG.DNS_SD_ADVERT_TIMEOUT)
 
+        assert self.zc is not None and self.zc_listener is not None
         ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
         time.sleep(CONFIG.DNS_SD_BROWSE_TIMEOUT)
         node_list = self.zc_listener.get_service_list()

@@ -16,6 +16,7 @@ import json
 import socket
 import requests
 from time import sleep
+from typing import Optional
 from urllib.parse import parse_qs
 from cryptography import x509
 
@@ -50,7 +51,7 @@ class IS1001Test(GenericTest):
   """
 
     def __init__(self, apis, **kwargs):
-        GenericTest.__init__(apis)
+        GenericTest.__init__(self, apis, **kwargs)
         if not CONFIG.ENABLE_HTTPS:
             raise NMOSInitException("IS-10 can only be tested when ENABLE_HTTPS is set to True in UserConfig.py")
         self.authorization = False  # Authorization API itself doesn't use auth, so don't send tokens in every request
@@ -91,7 +92,7 @@ class IS1001Test(GenericTest):
         return self.do_request(method=method, url=self.url + url_path,
                                data=data, auth=(username, password), params=params)
 
-    def _post_to_authorize_endpoint(self, data, parameters, auth="user"):
+    def _post_to_authorize_endpoint(self, data, parameters, auth: Optional[str] = "user"):
         """Post to /authorize endpoint, not allowing redirects to be automatically followed"""
         if auth == "user":
             username = CONFIG.AUTH_USERNAME
@@ -102,7 +103,8 @@ class IS1001Test(GenericTest):
         else:
             username = password = None
         return requests.post(url=self.url + 'authorize', data=data, params=parameters,
-                             allow_redirects=False, auth=(username, password), verify=CONFIG.CERT_TRUST_ROOT_CA)
+                             allow_redirects=False, auth=(username, password),  # pyright: ignore[reportArgumentType]
+                             verify=CONFIG.CERT_TRUST_ROOT_CA)
 
     def _raise_nmos_exception(self, test, response, string=''):
         """Raise NMOS Exception with HTTP Response Information"""
@@ -382,7 +384,7 @@ class IS1001Test(GenericTest):
                     self.bearer_tokens.append(response.json())
                     return test.PASS()
                 except Exception as e:
-                    self._raise_nmos_exception(self, test, response, string=str(e))
+                    self._raise_nmos_exception(test, response, string=str(e))
         else:
             return test.DISABLED("No Client Data or Auth Codes available")
 
@@ -407,7 +409,7 @@ class IS1001Test(GenericTest):
                     self.bearer_tokens.append(response.json())
                     return test.PASS()
                 except Exception as e:
-                    self._raise_nmos_exception(self, test, response, string=str(e))
+                    self._raise_nmos_exception(test, response, string=str(e))
         else:
             return test.DISABLED("No Bearer Tokens available")
 
@@ -421,7 +423,7 @@ class IS1001Test(GenericTest):
         try:
             self.validate_schema(response.json(), token_schema)
         except Exception as e:
-            self._raise_nmos_exception(self, test, response, string=str(e))
+            self._raise_nmos_exception(test, response, string=str(e))
 
         # Check that the certificate can be loaded and is therefore a valid PEM certificate
         try:
@@ -431,7 +433,7 @@ class IS1001Test(GenericTest):
             x509.load_pem_x509_certificate(pem)
             return test.PASS()
         except Exception as e:
-            self._raise_nmos_exception(self, test, response, string=str(e))
+            self._raise_nmos_exception(test, response, string=str(e))
 
     def test_08(self, test):
         """Test revocation of access tokens at '/revoke' endpoint"""
@@ -452,13 +454,13 @@ class IS1001Test(GenericTest):
             return test.DISABLED("No Bearer Tokens Available")
 
     def _bad_post_to_authorize_endpoint(
-            self, data, params, key, value, auth="user"):
+            self, data, params, key, value, auth: Optional[str] = "user"):
         """Post to /authorize endpoint with incorrect URL parameters"""
         params_copy = params.copy()
         params_copy[key] = value
         return self._post_to_authorize_endpoint(data, params_copy, auth)
 
-    def _bad_post_to_token_endpoint(self, data, key, value, auth='client'):
+    def _bad_post_to_token_endpoint(self, data, key, value, auth: Optional[str] = 'client'):
         """Post to /token endpoint with incorrect body parameters"""
         data_copy = data.copy()
         data_copy[key] = value
@@ -480,11 +482,11 @@ class IS1001Test(GenericTest):
         try:
             self.validate_schema(response.json(), token_schema)
         except Exception as e:
-            self._raise_nmos_exception(self, test, response, string=str(e))
+            self._raise_nmos_exception(test, response, string=str(e))
 
         if error_value not in response.json()["error"]:
-            self._raise_nmos_exception(self, test, response, "'{}' not in error response. Response: {}"
-                                                             .format(error_value, response.json()["error"]))
+            self._raise_nmos_exception(test, response, "'{}' not in error response. Response: {}"
+                                                       .format(error_value, response.json()["error"]))
 
     def test_09(self, test):
         """Test Error Response of Authorization Endpoint in line with RFC6749"""

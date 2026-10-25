@@ -52,6 +52,7 @@ class IS0403Test(GenericTest):
         if CONFIG.DNS_SD_MODE != "multicast":
             return test.DISABLED("This test cannot be performed when DNS_SD_MODE is not 'multicast'")
 
+        assert self.zc is not None
         ServiceBrowser(self.zc, "_nmos-node._tcp.local.", self.zc_listener)
         # Wait for n seconds for the Node to recognize it should adopt peer-to-peer operation
         start_time = time.time()

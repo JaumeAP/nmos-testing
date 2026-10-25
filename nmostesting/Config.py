@@ -120,6 +120,10 @@ ENABLE_AUTH = False
 # The following token is set by the application at runtime and should be left as 'None'
 AUTH_TOKEN = None
 
+# When testing the IS-10 Authorization API, the user already set up on the Authorization Server
+AUTH_USERNAME = None
+AUTH_PASSWORD = None
+
 # When testing private_key_jwt OAuth client, mock Auth server uses the jwks_uri to locate the client
 # JSON Web Key Set (JWKS) endpoint for the client JWKS to validate the client JWT (client_assertion)
 # when fetching the bearer token
